@@ -1,0 +1,49 @@
+server:
+  port: 8081
+
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://101.35.183.75:3306/ai_resume?useUnicode=true&characterEncoding=UTF-8
+    username: root
+    password: ai@resume0415
+    hikari:
+      minimum-idle: 5           # 最小空闲连接数
+      maximum-pool-size: 20     #最大连接数（默认10）
+      idle-timeout: 600000      # 空闲连接超时时间（毫秒）
+      connection-timeout: 30000 # 连接超时时间（毫秒，默认30000）
+      max-lifetime: 1800000     # 连接最大存活时间（毫秒）
+      pool-name: Hikari-resume  # 连接池名称
+      auto-commit: true         # 自动提交
+
+mybatis-plus:
+  configuration:
+    # 自动驼峰命名
+    mapUnderscoreToCamelCase: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  # 配置Mapper映射文件
+  mapper-locations: classpath*:com/ai/resume/mapper/xml/*.xml
+
+knife4j:
+  enable: true
+
+minio:
+  endpoint: http://101.35.183.75:9000
+  access-key: root
+  secret-key: ai@resume0415
+  bucket-name: resume
+
+algo:
+  thread:
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    keep-alive-seconds: 120
+    thread-name-prefix: algo-analysis-
+    complete-shutdown: true
+    await-termination-seconds: 120
+  path:
+    main-path: /python/algo main.py

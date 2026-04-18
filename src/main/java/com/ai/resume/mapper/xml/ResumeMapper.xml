@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.resume.mapper.ResumeMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.ai.resume.entity.ResumePO">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="file_name" property="fileName" />
+        <result column="file_size" property="fileSize" />
+        <result column="file_type" property="fileType" />
+        <result column="fiel_url" property="fielUrl" />
+        <result column="description" property="description" />
+        <result column="parse_status" property="parseStatus" />
+        <result column="parse_error_msg" property="parseErrorMsg" />
+        <result column="full_name" property="fullName" />
+        <result column="gender" property="gender" />
+        <result column="birthday" property="birthday" />
+        <result column="phone" property="phone" />
+        <result column="email" property="email" />
+        <result column="nationality" property="nationality" />
+        <result column="location" property="location" />
+        <result column="summary" property="summary" />
+        <result column="total_work_years" property="totalWorkYears" />
+        <result column="expected_salary" property="expectedSalary" />
+        <result column="job_status" property="jobStatus" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+        <result column="update_by" property="updateBy" />
+        <result column="update_time" property="updateTime" />
+        <result column="deleted" property="deleted" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, user_id, file_name, file_size, file_type, fiel_url, description, parse_status, parse_error_msg, full_name, gender, birthday, phone, email, nationality, location, summary, total_work_years, expected_salary, job_status, create_by, create_time, update_by, update_time, deleted
+    </sql>
+
+</mapper>
