@@ -1,6 +1,7 @@
 package com.ai.resume.service;
 
 
+import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
 import com.ai.resume.result.Result;
@@ -23,5 +24,5 @@ public interface ResumeService extends IService<ResumePO> {
 
     Boolean algoRanking(Long id);
 
-    Boolean getResumeInfo(Long id);
+    ResumeInfoVO getResumeInfo(Long id);
 }

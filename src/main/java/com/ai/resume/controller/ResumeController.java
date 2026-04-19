@@ -1,6 +1,7 @@
 package com.ai.resume.controller;
 
 
+import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
@@ -47,7 +48,7 @@ public class ResumeController {
 
     @GetMapping("/get/resume/info/{id}")
     @Operation(summary = "获取简历分数，标签等信息")
-    public Result<Boolean> getResumeInfo(@PathVariable Long id) {
+    public Result<ResumeInfoVO> getResumeInfo(@PathVariable Long id) {
         return Result.success(resumeService.getResumeInfo(id));
     }
 }

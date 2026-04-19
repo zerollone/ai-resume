@@ -1,6 +1,6 @@
 package com.ai.resume.utils;
 
-import com.ai.resume.controller.config.properties.MinioProperties;
+import com.ai.resume.config.properties.MinioProperties;
 import com.ai.resume.exception.CommonException;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;

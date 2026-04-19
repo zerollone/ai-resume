@@ -1,9 +1,9 @@
 package com.ai.resume.enums;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 @AllArgsConstructor
 public enum ResumeStatusEnum {
 

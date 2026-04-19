@@ -1,4 +1,4 @@
-package com.ai.resume.controller.config.properties;
+package com.ai.resume.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

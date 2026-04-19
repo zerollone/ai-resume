@@ -2,12 +2,18 @@ package com.ai.resume.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
-import com.ai.resume.controller.config.properties.AlgorithmPathProperties;
+import com.ai.resume.config.properties.AlgorithmPathProperties;
+import com.ai.resume.config.properties.MinioProperties;
+import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
+import com.ai.resume.entity.ResumeScorePO;
+import com.ai.resume.entity.ResumeTagPO;
 import com.ai.resume.enums.ResumeStatusEnum;
 import com.ai.resume.exception.CommonException;
 import com.ai.resume.mapper.ResumeMapper;
+import com.ai.resume.mapper.ResumeScoreMapper;
+import com.ai.resume.mapper.ResumeTagMapper;
 import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
 import com.ai.resume.utils.Base64Util;
@@ -15,14 +21,17 @@ import com.ai.resume.utils.MinioUtil;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -47,6 +56,8 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     private static final Integer FILE_SIZE = 1024 * 1024 * 50;
 
+    private static final String TOTAL_RANK = "rank:overall";
+
     @Autowired
     private MinioUtil minioUtil;
 
@@ -56,6 +67,18 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     @Autowired
     private AlgorithmPathProperties pathProperties;
+
+    @Autowired
+    private ResumeScoreMapper resumeScoreMapper;
+
+    @Autowired
+    private ResumeTagMapper resumeTagMapper;
+
+    @Autowired
+    private MinioProperties minioProperties;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public String upload(MultipartFile file) {
@@ -162,9 +185,33 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     @Override
     @Transactional
-    public Boolean getResumeInfo(Long id) {
+    public ResumeInfoVO getResumeInfo(Long id) {
+        List<ResumeScorePO> resumeScorePOS = resumeScoreMapper.selectList(Wrappers
+                .<ResumeScorePO>lambdaQuery()
+                .eq(ResumeScorePO::getResumeId, id)
+                .orderByDesc(ResumeScorePO::getCreateTime));
+        if (ObjectUtils.isEmpty(resumeScorePOS)) {
+            return null;
+        }
+        ResumeScorePO resumeScorePO = resumeScorePOS.get(0);
 
-        return null;
+        ResumeTagPO resumeTagPO = resumeTagMapper.selectOne(Wrappers.<ResumeTagPO>lambdaQuery()
+                .eq(ResumeTagPO::getTagName, resumeScorePO.getAttributeLabel()));
+
+        ResumeInfoVO resumeInfoVO = BeanUtil.copyProperties(resumeScorePO, ResumeInfoVO.class);
+        if (ObjectUtils.isNotEmpty(resumeTagPO)) {
+            resumeInfoVO.setImageUrl(minioProperties.getEndpoint() + SLASH + resumeTagPO.getImageUrl());
+            resumeInfoVO.setModelUrl(minioProperties.getEndpoint() + SLASH + resumeTagPO.getModelUrl());
+        }
+
+        // 总分数写入redis中
+        Double totalScore = resumeScorePO.getTotalScore().doubleValue();
+        rankToRedis(TOTAL_RANK, String.valueOf(id), totalScore);
+        return resumeInfoVO;
+    }
+
+    private void rankToRedis(String key, String resumeId, Double score) {
+        stringRedisTemplate.opsForZSet().add(key, resumeId, score);
     }
 
     private void execPython(String command) {

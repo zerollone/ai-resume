@@ -1,6 +1,6 @@
-package com.ai.resume.controller.config.thread;
+package com.ai.resume.config.thread;
 
-import com.ai.resume.controller.config.properties.AlgorithmThreadProperties;
+import com.ai.resume.config.properties.AlgorithmThreadProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;

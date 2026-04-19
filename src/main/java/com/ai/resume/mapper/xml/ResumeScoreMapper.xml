@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.resume.mapper.ResumeScoreMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.ai.resume.entity.ResumeScorePO">
+        <id column="id" property="id" />
+        <result column="resume_id" property="resumeId" />
+        <result column="edu_score" property="eduScore" />
+        <result column="intern_score" property="internScore" />
+        <result column="job_score" property="jobScore" />
+        <result column="project_score" property="projectScore" />
+        <result column="total_score" property="totalScore" />
+        <result column="attribute_label" property="attributeLabel" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+        <result column="edu_level" property="eduLevel" />
+        <result column="is_fresh_graduate" property="isFreshGraduate" />
+        <result column="school_type" property="schoolType" />
+        <result column="intern_duration" property="internDuration" />
+        <result column="intern_count" property="internCount" />
+        <result column="job_duration" property="jobDuration" />
+        <result column="job_count" property="jobCount" />
+        <result column="company_type" property="companyType" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, resume_id, edu_score, intern_score, job_score, project_score, total_score, attribute_label, create_time, update_time, edu_level, is_fresh_graduate, school_type, intern_duration, intern_count, job_duration, job_count, company_type
+    </sql>
+
+</mapper>
