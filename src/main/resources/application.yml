@@ -31,7 +31,10 @@ spring:
           max-idle: 8
           min-idle: 0
       password: ai@resume0415
-
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
 sa-token:
   # Token 名称（同时也是 Cookie 名称）
   token-name: satoken
@@ -72,3 +75,4 @@ algo:
     await-termination-seconds: 120
   path:
     main-path: python main.py
+    ranking-path: python main.py

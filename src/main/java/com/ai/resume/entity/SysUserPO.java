@@ -59,13 +59,13 @@ public class SysUserPO implements Serializable {
       private String lastLoginIp;
 
       // 创建人
-      private String createBy;
+      private Long createBy;
 
       // 创建时间
       private LocalDateTime createTime;
 
       // 更新人
-      private String updateBy;
+      private Long updateBy;
 
       // 更新时间
       private LocalDateTime updateTime;

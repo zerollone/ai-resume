@@ -1,7 +1,9 @@
 package com.ai.resume.service;
 
 
+import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
+import com.ai.resume.result.Result;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,5 +17,11 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ResumeService extends IService<ResumePO> {
 
-    Boolean upload(MultipartFile file);
+    String upload(MultipartFile file);
+
+    Result<ResumeParseVO> getParseInfo(String url);
+
+    Boolean algoRanking(Long id);
+
+    Boolean getResumeInfo(Long id);
 }

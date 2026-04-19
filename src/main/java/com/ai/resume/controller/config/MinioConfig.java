@@ -1,6 +1,6 @@
-package com.ai.resume.config;
+package com.ai.resume.controller.config;
 
-import com.ai.resume.config.properties.MinioProperties;
+import com.ai.resume.controller.config.properties.MinioProperties;
 import io.minio.MinioClient;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;

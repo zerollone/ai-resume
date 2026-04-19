@@ -1,4 +1,4 @@
-package com.ai.resume.config;
+package com.ai.resume.controller.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import org.springframework.context.annotation.Configuration;

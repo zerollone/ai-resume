@@ -1,17 +1,26 @@
 package com.ai.resume.service.impl;
 
-import com.ai.resume.config.properties.AlgorithmPathProperties;
+import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.bean.BeanUtil;
+import com.ai.resume.controller.config.properties.AlgorithmPathProperties;
+import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
+import com.ai.resume.enums.ResumeStatusEnum;
 import com.ai.resume.exception.CommonException;
 import com.ai.resume.mapper.ResumeMapper;
+import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
+import com.ai.resume.utils.Base64Util;
 import com.ai.resume.utils.MinioUtil;
+import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -36,6 +45,8 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     private static final String SLASH = "/";
 
+    private static final Integer FILE_SIZE = 1024 * 1024 * 50;
+
     @Autowired
     private MinioUtil minioUtil;
 
@@ -47,10 +58,13 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
     private AlgorithmPathProperties pathProperties;
 
     @Override
-    public Boolean upload(MultipartFile file) {
-        long start = System.currentTimeMillis();
+    public String upload(MultipartFile file) {
         if (file == null) {
             throw new CommonException("请上传简历文件");
+        }
+        long size = file.getSize();
+        if (size > FILE_SIZE) {
+            throw new CommonException("简历文件最大支持50MB");
         }
         String filename = file.getOriginalFilename();
         String fileType = filename.substring(filename.lastIndexOf(".") + 1);
@@ -58,46 +72,99 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
         if (!FILE_TYPE.contains(fileType)) {
             throw new CommonException("不支持的文件类型！");
         }
-        long size = file.getSize();
-
-        long end1 = System.currentTimeMillis();
 
         // minio文件路径
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String objectName = datePath + SLASH + UUID.randomUUID() + ".pdf";
-        long end2 = System.currentTimeMillis();
+
         // 上传到minio
         String fileUrl = minioUtil.uploadFile(file, objectName);
-        long end3 = System.currentTimeMillis();
-        // 保存
-        ResumePO po = new ResumePO();
-        po.setUserId(1L);
-        po.setFileName(filename);
-        po.setFileSize(size);
-        po.setFileType(fileType);
-        po.setFileUrl(fileUrl);
-        po.setParseStatus(1);
-        this.save(po);
-        long end4 = System.currentTimeMillis();
+
+        long userId  = StpUtil.getLoginIdAsLong();
         String mainPath = pathProperties.getMainPath();
         // 调用算法
         algoExecutor.submit(() -> {
             StringBuilder builder = new StringBuilder();
             builder.append(mainPath).append(" ")
-                    .append("--resume_id").append(" ").append(po.getId()).append(" ")
-                    .append("--user_id").append(" ").append(po.getUserId()).append(" ")
+//                    .append("--resume_id").append(" ").append(po.getId()).append(" ")
+                    .append("--user_id").append(" ").append(userId).append(" ")
                     .append("--resume_loc").append(" ")
-                    .append("\"").append(po.getFileUrl()).append("\"");
-            System.out.println(builder.toString());
+                    .append("\"").append(fileUrl).append("\"");
+            log.info("[parse algo] 调用python命令：{}", builder.toString());
+            execPython(builder.toString());
         });
-        long end5 = System.currentTimeMillis();
 
-        System.out.println("end1: " + (end1 - start));
-        System.out.println("end2: " + (end2 - start));
-        System.out.println("end3: " + (end3 - start));
-        System.out.println("end4: " + (end4 - start));
-        System.out.println("end5: " + (end5 - start));
+        return Base64Util.encodeUrlSafe(fileUrl);
+    }
+
+    @Override
+    public Result<ResumeParseVO> getParseInfo(String url) {
+        String decodeUrlSafe = Base64Util.decodeUrlSafe(url);
+        long userId = StpUtil.getLoginIdAsLong();
+
+        // 查询数据
+        List<ResumePO> poList = this.list(Wrappers.<ResumePO>lambdaQuery()
+                .eq(ResumePO::getUserId, userId)
+                .eq(ResumePO::getFileUrl, decodeUrlSafe));
+
+        if (poList.size() != 1) {
+            return Result.error(500, "数据异常");
+        }
+
+        ResumePO resumePO = poList.get(0);
+        if (ObjectUtils.isEmpty(resumePO.getParseStatus())) {
+            return Result.success(null);
+        }
+
+        // 查询解析状态
+        ResumeStatusEnum resumeStatusEnum = ResumeStatusEnum.fromCode(resumePO.getParseStatus());
+        if (ObjectUtils.isEmpty(resumeStatusEnum)) {
+            return Result.success(null);
+        }
+
+        // 返回解析数据
+        switch (resumeStatusEnum) {
+            case BE_PARSE, PARSING -> {
+                return Result.success(null);
+            }
+            case PARSE_SUCCESS -> {
+                ResumeParseVO resumeParseVO = BeanUtil.copyProperties(resumePO, ResumeParseVO.class);
+                return Result.success(resumeParseVO);
+            }
+            case PARSE_FAIL -> {
+                return Result.error(500, resumePO.getParseErrorMsg());
+            }
+            default -> {
+                throw new CommonException("解析状态异常");
+            }
+        }
+    }
+
+    @Override
+    public Boolean algoRanking(Long id) {
+        ResumePO resumePO = this.getById(id);
+        if (ObjectUtils.isEmpty(resumePO)) {
+            throw new CommonException("数据为空，运行异常");
+        }
+
+        String rankingPath = pathProperties.getRankingPath();
+
+        algoExecutor.submit(() -> {
+            StringBuilder builder = new StringBuilder();
+            builder.append(rankingPath).append(" ")
+                    .append("--resume_id").append(" ").append(id);
+            log.info("[ranking algo] 调用python命令：{}", builder.toString());
+            execPython(builder.toString());
+        });
+
         return Boolean.TRUE;
+    }
+
+    @Override
+    @Transactional
+    public Boolean getResumeInfo(Long id) {
+
+        return null;
     }
 
     private void execPython(String command) {

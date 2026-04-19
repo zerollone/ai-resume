@@ -1,4 +1,4 @@
-package com.ai.resume.config.properties;
+package com.ai.resume.controller.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -14,4 +14,5 @@ import org.springframework.stereotype.Component;
 public class AlgorithmPathProperties {
 
     private String mainPath;
+    private String rankingPath;
 }
