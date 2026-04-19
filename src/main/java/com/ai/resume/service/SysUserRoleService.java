@@ -1,6 +1,6 @@
 package com.ai.resume.service;
 
-import com.ai.resume.entity.SysUserRole;
+import com.ai.resume.entity.SysUserRolePO;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -11,6 +11,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @author ws
  * @since 2026-04-18
  */
-public interface SysUserRoleService extends IService<SysUserRole> {
+public interface SysUserRoleService extends IService<SysUserRolePO> {
 
 }

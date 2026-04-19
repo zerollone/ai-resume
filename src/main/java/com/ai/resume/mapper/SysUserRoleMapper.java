@@ -1,6 +1,6 @@
 package com.ai.resume.mapper;
 
-import com.ai.resume.entity.SysUserRole;
+import com.ai.resume.entity.SysUserRolePO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -13,6 +13,6 @@ import org.apache.ibatis.annotations.Mapper;
  * @since 2026-04-18
  */
 @Mapper
-public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
+public interface SysUserRoleMapper extends BaseMapper<SysUserRolePO> {
 
 }

@@ -3,7 +3,7 @@
 <mapper namespace="com.ai.resume.mapper.SysRolePermissionMapper">
 
     <!-- 通用查询映射结果 -->
-    <resultMap id="BaseResultMap" type="com.ai.resume.entity.SysRolePermission">
+    <resultMap id="BaseResultMap" type="com.ai.resume.entity.SysRolePermissionPO">
         <id column="id" property="id" />
         <result column="role_id" property="roleId" />
         <result column="permission_id" property="permissionId" />

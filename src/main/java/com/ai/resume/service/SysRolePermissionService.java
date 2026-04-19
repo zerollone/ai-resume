@@ -1,6 +1,6 @@
 package com.ai.resume.service;
 
-import com.ai.resume.entity.SysRolePermission;
+import com.ai.resume.entity.SysRolePermissionPO;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -11,6 +11,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @author ws
  * @since 2026-04-18
  */
-public interface SysRolePermissionService extends IService<SysRolePermission> {
+public interface SysRolePermissionService extends IService<SysRolePermissionPO> {
 
 }

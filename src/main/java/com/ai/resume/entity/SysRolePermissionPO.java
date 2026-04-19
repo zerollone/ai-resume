@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- * 用户角色关联表
+ * 角色权限关联表
  * </p>
  *
  * @author ws
@@ -19,8 +19,8 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-@TableName("sys_user_role")
-public class SysUserRole implements Serializable {
+@TableName("sys_role_permission")
+public class SysRolePermissionPO implements Serializable {
 
     private static final long serialVersionUID=1L;
 
@@ -28,11 +28,11 @@ public class SysUserRole implements Serializable {
       @TableId(value = "id", type = IdType.AUTO)
       private Long id;
 
-      // 用户ID
-      private Long userId;
-
       // 角色ID
       private Long roleId;
+
+      // 权限ID
+      private Long permissionId;
 
       // 创建人
       private String createBy;
@@ -45,5 +45,6 @@ public class SysUserRole implements Serializable {
 
       // 更新时间
       private LocalDateTime updateTime;
+
 
 }

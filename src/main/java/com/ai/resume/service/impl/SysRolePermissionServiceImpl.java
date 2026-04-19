@@ -1,6 +1,6 @@
 package com.ai.resume.service.impl;
 
-import com.ai.resume.entity.SysRolePermission;
+import com.ai.resume.entity.SysRolePermissionPO;
 import com.ai.resume.mapper.SysRolePermissionMapper;
 import com.ai.resume.service.SysRolePermissionService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -15,6 +15,6 @@ import org.springframework.stereotype.Service;
  * @since 2026-04-18
  */
 @Service
-public class SysRolePermissionServiceImpl extends ServiceImpl<SysRolePermissionMapper, SysRolePermission> implements SysRolePermissionService {
+public class SysRolePermissionServiceImpl extends ServiceImpl<SysRolePermissionMapper, SysRolePermissionPO> implements SysRolePermissionService {
 
 }
