@@ -28,7 +28,8 @@ public class SaTokenConfig {
                             "/swagger-resources/**",
                             "/webjars/**",
                             "/v3/api-docs/**",
-                            "/favicon.ico");
+                            "/favicon.ico"
+                    );
         }
     }
 }
