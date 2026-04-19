@@ -20,7 +20,8 @@ public class SaTokenConfig {
             // 注册Sa-Token拦截器，定义需要拦截的路径
             registry.addInterceptor(new SaInterceptor())
                     .addPathPatterns("/**")
-                    .excludePathPatterns("/user/login", "/user/register",
+                    .excludePathPatterns("/user/login",
+                            "/user/register",
                             "/doc.html",
                             "/swagger-ui/**",
                             "/swagger-resources/**",
