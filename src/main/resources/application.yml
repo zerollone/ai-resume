@@ -76,3 +76,7 @@ algo:
   path:
     main-path: python main.py
     ranking-path: python main.py
+    suggest-path: python main.py
+
+resume:
+  ranking-num: 20

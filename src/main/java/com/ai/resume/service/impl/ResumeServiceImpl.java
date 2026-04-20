@@ -4,16 +4,22 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import com.ai.resume.config.properties.AlgorithmPathProperties;
 import com.ai.resume.config.properties.MinioProperties;
+import com.ai.resume.config.properties.ResumeProperties;
+import com.ai.resume.controller.vo.RankingInfoVO;
+import com.ai.resume.controller.vo.RankingUserInfoVO;
 import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
 import com.ai.resume.entity.ResumeScorePO;
 import com.ai.resume.entity.ResumeTagPO;
+import com.ai.resume.entity.SysUserPO;
+import com.ai.resume.enums.RankingTypeEnum;
 import com.ai.resume.enums.ResumeStatusEnum;
 import com.ai.resume.exception.CommonException;
 import com.ai.resume.mapper.ResumeMapper;
 import com.ai.resume.mapper.ResumeScoreMapper;
 import com.ai.resume.mapper.ResumeTagMapper;
+import com.ai.resume.mapper.SysUserMapper;
 import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
 import com.ai.resume.utils.Base64Util;
@@ -26,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,9 +41,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -56,7 +62,12 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     private static final Integer FILE_SIZE = 1024 * 1024 * 50;
 
-    private static final String TOTAL_RANK = "rank:overall";
+    private static final String RANK_TOTAL = "rank:overall";
+    private static final String RANK_TIAN = "rank:tian";
+    private static final String RANK_DI = "rank:di";
+    private static final String RANK_XUAN = "rank:xuan";
+    private static final String RANK_HUANG = "rank:huang";
+    private static final String RANK_OTHER = "rank:other";
 
     @Autowired
     private MinioUtil minioUtil;
@@ -79,6 +90,12 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private ResumeProperties resumeProperties;
+
+    @Autowired
+    private SysUserMapper userMapper;
 
     @Override
     public String upload(MultipartFile file) {
@@ -171,14 +188,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
         }
 
         String rankingPath = pathProperties.getRankingPath();
-
-        algoExecutor.submit(() -> {
-            StringBuilder builder = new StringBuilder();
-            builder.append(rankingPath).append(" ")
-                    .append("--resume_id").append(" ").append(id);
-            log.info("[ranking algo] 调用python命令：{}", builder.toString());
-            execPython(builder.toString());
-        });
+        execShell(rankingPath, String.valueOf(id));
 
         return Boolean.TRUE;
     }
@@ -206,8 +216,147 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
         // 总分数写入redis中
         Double totalScore = resumeScorePO.getTotalScore().doubleValue();
-        rankToRedis(TOTAL_RANK, String.valueOf(id), totalScore);
+        // 使用用户id做排名
+        String loginIdAsString = StpUtil.getLoginIdAsString();
+        rankToRedis(RANK_TOTAL, loginIdAsString, totalScore);
+        // 根据学历写入对应榜单
+        RankingTypeEnum rankingTypeEnum = RankingTypeEnum.fromCode(resumeScorePO.getEduLevel());
+        if (ObjectUtils.isNotEmpty(rankingTypeEnum)) {
+            String zsetName = rankingRedisName(rankingTypeEnum);
+            rankToRedis(zsetName, loginIdAsString, totalScore);
+        }
         return resumeInfoVO;
+    }
+
+    @Override
+    public RankingInfoVO rankingInfo(RankingTypeEnum type) {
+        // 查询前20名用户
+        Integer rankingNum = resumeProperties.getRankingNum();
+        String rankType = rankingRedisName(type);
+        Map<Long, Double> topInfo = getIdByTopN(rankType, rankingNum);
+        if (ObjectUtils.isEmpty(topInfo)) {
+            return null;
+        }
+        List<Long> userIds = new ArrayList<>(topInfo.keySet());
+
+        // 通过top榜查询简历表
+        List<ResumePO> resumePOS = this.list(Wrappers.<ResumePO>lambdaQuery()
+                .in(ResumePO::getUserId, userIds)
+                .eq(ResumePO::getDeleted, 0));
+
+        Map<Long, List<ResumePO>> resumeRank = resumePOS.stream().collect(Collectors.groupingBy(ResumePO::getUserId));
+
+        // 查询top榜对应的用户信息
+        List<SysUserPO> userPOS = userMapper.selectByIds(userIds);
+        Map<Long, SysUserPO> userRank = userPOS.stream().collect(Collectors.toMap(SysUserPO::getId, s -> s));
+
+        RankingInfoVO vo = new RankingInfoVO();
+        List<RankingUserInfoVO> userInfoVOS = new ArrayList<>();
+        int rank = 1;
+        for (Long userId : userIds) {
+            List<ResumePO> resumeList = resumeRank.get(userId);
+            ResumePO newResume = null;
+            if (resumeList.size() == 1) {
+                newResume = resumeList.get(0);
+            } else {
+                newResume = resumeList.stream()
+                        .sorted(Comparator.comparing(ResumePO::getCreateTime).reversed())
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("排行榜数据异常"));
+            }
+            SysUserPO newUser = userRank.get(userId);
+
+            RankingUserInfoVO build = RankingUserInfoVO.builder()
+                    .userId(newUser.getId())
+                    .username(newUser.getUsername())
+                    .avatar(newUser.getAvatar())
+                    .rank(String.valueOf(rank))
+                    .resumeId(newResume.getId())
+                    .score(topInfo.get(userId))
+                    .build();
+            userInfoVOS.add(build);
+        }
+
+        vo.setTotalInfo(userInfoVOS);
+
+        // 查询当前用户的排名和分数
+        Long rankingById = getRankingById(rankType, StpUtil.getLoginIdAsString());
+        Double rankingScore = getRankingScore(rankType, StpUtil.getLoginIdAsString());
+        List<ResumePO> list = this.list(Wrappers.<ResumePO>lambdaQuery()
+                .eq(ResumePO::getUserId, rankingById)
+                .orderByDesc(ResumePO::getCreateTime));
+        SysUserPO sysUserPO = userMapper.selectById(StpUtil.getLoginIdAsLong());
+        RankingUserInfoVO currentUserInfo = RankingUserInfoVO.builder()
+                .userId(sysUserPO.getId())
+                .username(sysUserPO.getUsername())
+                .avatar(sysUserPO.getAvatar())
+                .rank(rankingById > 99 ? "99+" : String.valueOf(rankingById))
+                .resumeId(list.get(0).getId())
+                .score(rankingScore).build();
+
+        vo.setCurrentUserInfo(currentUserInfo);
+        return vo;
+    }
+
+    @Override
+    public Boolean suggest(Long resumeId) {
+        ResumePO resumePO = this.getById(resumeId);
+        if (ObjectUtils.isEmpty(resumePO)) {
+            throw new CommonException("数据为空，运行异常");
+        }
+
+        String suggestPath = pathProperties.getSuggestPath();
+        execShell(suggestPath, String.valueOf(resumeId));
+
+        return Boolean.TRUE;
+    }
+
+    @Override
+    public String getSuggestInfo(Long resumeId) {
+
+        return null;
+    }
+
+    private void execShell(String path, String resumeId) {
+        algoExecutor.submit(() -> {
+            StringBuilder builder = new StringBuilder();
+            builder.append(path).append(" ")
+                    .append("--resume_id").append(" ").append(resumeId);
+            log.info("调用python命令：{}", builder.toString());
+            execPython(builder.toString());
+        });
+    }
+
+    private String rankingRedisName(RankingTypeEnum rankingTypeEnum) {
+        String zsetName = null;
+        switch (rankingTypeEnum) {
+            case TIAN -> zsetName = RANK_TIAN;
+            case DI -> zsetName = RANK_DI;
+            case XUAN -> zsetName = RANK_XUAN;
+            case HUANG -> zsetName = RANK_HUANG;
+            default -> zsetName = RANK_OTHER;
+        }
+        return zsetName;
+    }
+
+    private Double getRankingScore(String key, String id) {
+        return stringRedisTemplate.opsForZSet().score(key, id);
+    }
+
+    private Long getRankingById(String key, String id) {
+        return stringRedisTemplate.opsForZSet().reverseRank(key, id);
+    }
+
+    private Map<Long, Double> getIdByTopN(String key, int n) {
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet().reverseRangeWithScores(key, 0, n - 1);
+
+        Map<Long, Double> topInfo = new LinkedHashMap<>();
+        for (ZSetOperations.TypedTuple<String> tuple : typedTuples) {
+            String value = tuple.getValue();
+            Double score = tuple.getScore();
+            topInfo.put(Long.valueOf(value), score);
+        }
+        return topInfo;
     }
 
     private void rankToRedis(String key, String resumeId, Double score) {
