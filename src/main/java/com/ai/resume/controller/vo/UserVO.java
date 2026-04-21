@@ -1,5 +1,6 @@
 package com.ai.resume.controller.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -11,21 +12,21 @@ public class UserVO {
 
     private Long id;
 
-    // 用户名
+    @Schema(description = "用户名")
     private String username;
 
-    // 昵称
+    @Schema(description = "昵称")
     private String nickname;
 
-    // 个人描述
+    @Schema(description = "个人描述")
     private String description;
 
-    // 邮箱
+    @Schema(description = "邮箱")
     private String email;
 
-    // 手机号
+    @Schema(description = "手机号")
     private String mobile;
 
-    // 头像URL
+    @Schema(description = "头像URL")
     private String avatar;
 }
