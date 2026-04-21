@@ -2,12 +2,15 @@ package com.ai.resume.service;
 
 
 import com.ai.resume.controller.vo.RankingInfoVO;
+import com.ai.resume.controller.vo.ResumeHistoryVO;
 import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.entity.ResumePO;
 import com.ai.resume.enums.RankingTypeEnum;
 import com.ai.resume.result.Result;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -33,4 +36,6 @@ public interface ResumeService extends IService<ResumePO> {
     Boolean suggest(Long resumeId);
 
     String getSuggestInfo(Long resumeId);
+
+    IPage<ResumeHistoryVO> history(Integer current, Integer size);
 }

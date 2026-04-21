@@ -2,11 +2,13 @@ package com.ai.resume.controller;
 
 
 import com.ai.resume.controller.vo.RankingInfoVO;
+import com.ai.resume.controller.vo.ResumeHistoryVO;
 import com.ai.resume.controller.vo.ResumeInfoVO;
 import com.ai.resume.controller.vo.ResumeParseVO;
 import com.ai.resume.enums.RankingTypeEnum;
 import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,13 +68,16 @@ public class ResumeController {
         return Result.success(resumeService.suggest(resumeId));
     }
 
-    // 查询简历建议数据接口
     @GetMapping("/get/suggest/info/{resumeId}")
     @Operation(summary = "查询简历建议数据")
     public Result<String> getSuggestInfo(@PathVariable Long resumeId) {
         return Result.success(resumeService.getSuggestInfo(resumeId));
     }
 
-    // 获取个人简历历史数据
+    @GetMapping("/history/{current}/{size}")
+    @Operation(summary = "查看当前用户简历历史数据")
+    public Result<IPage<ResumeHistoryVO>> history(@PathVariable Integer current, @PathVariable Integer size) {
+        return Result.success(resumeService.history(current, size));
+    }
 }
 

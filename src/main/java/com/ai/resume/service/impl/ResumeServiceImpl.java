@@ -5,27 +5,21 @@ import cn.hutool.core.bean.BeanUtil;
 import com.ai.resume.config.properties.AlgorithmPathProperties;
 import com.ai.resume.config.properties.MinioProperties;
 import com.ai.resume.config.properties.ResumeProperties;
-import com.ai.resume.controller.vo.RankingInfoVO;
-import com.ai.resume.controller.vo.RankingUserInfoVO;
-import com.ai.resume.controller.vo.ResumeInfoVO;
-import com.ai.resume.controller.vo.ResumeParseVO;
-import com.ai.resume.entity.ResumePO;
-import com.ai.resume.entity.ResumeScorePO;
-import com.ai.resume.entity.ResumeTagPO;
-import com.ai.resume.entity.SysUserPO;
+import com.ai.resume.controller.vo.*;
+import com.ai.resume.entity.*;
 import com.ai.resume.enums.RankingTypeEnum;
 import com.ai.resume.enums.ResumeStatusEnum;
 import com.ai.resume.exception.CommonException;
-import com.ai.resume.mapper.ResumeMapper;
-import com.ai.resume.mapper.ResumeScoreMapper;
-import com.ai.resume.mapper.ResumeTagMapper;
-import com.ai.resume.mapper.SysUserMapper;
+import com.ai.resume.mapper.*;
 import com.ai.resume.result.Result;
 import com.ai.resume.service.ResumeService;
 import com.ai.resume.utils.Base64Util;
 import com.ai.resume.utils.MinioUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -97,6 +91,9 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
     @Autowired
     private SysUserMapper userMapper;
 
+    @Autowired
+    private ResumeSuggestMapper resumeSuggestMapper;
+
     @Override
     public String upload(MultipartFile file) {
         if (file == null) {
@@ -120,7 +117,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
         // 上传到minio
         String fileUrl = minioUtil.uploadFile(file, objectName);
 
-        long userId  = StpUtil.getLoginIdAsLong();
+        long userId = StpUtil.getLoginIdAsLong();
         String mainPath = pathProperties.getMainPath();
         // 调用算法
         algoExecutor.submit(() -> {
@@ -313,8 +310,56 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
     @Override
     public String getSuggestInfo(Long resumeId) {
-
+        List<ResumeSuggestPO> resumeSuggestPOS = resumeSuggestMapper.selectList(
+                Wrappers.<ResumeSuggestPO>lambdaQuery()
+                        .eq(ResumeSuggestPO::getResumeId, resumeId)
+                        .orderByDesc(ResumeSuggestPO::getCreateTime));
+        if (ObjectUtils.isNotEmpty(resumeSuggestPOS)) {
+            return resumeSuggestPOS.get(0).getSuggestContent();
+        }
         return null;
+    }
+
+    @Override
+    public IPage<ResumeHistoryVO> history(Integer current, Integer size) {
+
+        Page<ResumePO> page = new Page<>(current, size);
+        long userId = StpUtil.getLoginIdAsLong();
+        LambdaQueryWrapper<ResumePO> wrapper = Wrappers.<ResumePO>lambdaQuery()
+                .eq(ResumePO::getUserId, userId)
+                .orderByDesc(ResumePO::getCreateTime);
+
+        Page<ResumePO> resumePOPage = this.baseMapper.selectPage(page, wrapper);
+        List<ResumePO> records = resumePOPage.getRecords();
+
+        List<Long> resumeIds = records.stream().map(ResumePO::getId).toList();
+        List<ResumeScorePO> resumeScorePOS = resumeScoreMapper.selectList(
+                Wrappers.<ResumeScorePO>lambdaQuery()
+                        .in(ResumeScorePO::getResumeId, resumeIds));
+        Map<Long, List<ResumeScorePO>> scoreList = resumeScorePOS.stream().collect(Collectors.groupingBy(ResumeScorePO::getResumeId));
+
+        List<ResumeHistoryVO> voList = new ArrayList<>();
+        for (ResumePO record : records) {
+            List<ResumeScorePO> scoreWithResume = scoreList.get(record.getId());
+            ResumeScorePO scorePO = scoreWithResume.stream()
+                    .max(Comparator.comparing(ResumeScorePO::getCreateTime))
+                    .orElseThrow(() -> new RuntimeException("历史数据异常"));
+
+            ResumeHistoryVO historyVO = ResumeHistoryVO.builder()
+                    .id(record.getId())
+                    .fileName(record.getFileName())
+                    .fileUrl(record.getFileUrl())
+                    .totalScore(scorePO.getTotalScore())
+                    .attributeLabel(scorePO.getAttributeLabel()).build();
+            voList.add(historyVO);
+        }
+
+        IPage<ResumeHistoryVO> pageData = new Page<>();
+        pageData.setSize(resumePOPage.getSize());
+        pageData.setCurrent(resumePOPage.getCurrent());
+        pageData.setTotal(resumePOPage.getTotal());
+        pageData.setRecords(voList);
+        return pageData;
     }
 
     private void execShell(String path, String resumeId) {
