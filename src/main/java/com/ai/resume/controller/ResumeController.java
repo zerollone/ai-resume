@@ -63,13 +63,13 @@ public class ResumeController {
     }
 
     @GetMapping("/suggest/{resumeId}")
-    @Operation(summary = "简历建议")
+    @Operation(summary = "简历建议-调用建议算法")
     public Result<Boolean> suggest(@PathVariable Long resumeId) {
         return Result.success(resumeService.suggest(resumeId));
     }
 
     @GetMapping("/get/suggest/info/{resumeId}")
-    @Operation(summary = "查询简历建议数据")
+    @Operation(summary = "简历建议-查询数据")
     public Result<String> getSuggestInfo(@PathVariable Long resumeId) {
         return Result.success(resumeService.getSuggestInfo(resumeId));
     }

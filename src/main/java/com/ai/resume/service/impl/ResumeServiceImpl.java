@@ -104,6 +104,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
             throw new CommonException("简历文件最大支持50MB");
         }
         String filename = file.getOriginalFilename();
+        log.info("====== 上传文件名称：{}", filename);
         String fileType = filename.substring(filename.lastIndexOf(".") + 1);
 
         if (!FILE_TYPE.contains(fileType)) {
@@ -112,25 +113,27 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
 
         // minio文件路径
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String objectName = datePath + SLASH + UUID.randomUUID() + ".pdf";
+        String objectName = datePath + SLASH + UUID.randomUUID() + "." + fileType;
 
         // 上传到minio
         String fileUrl = minioUtil.uploadFile(file, objectName);
 
         long userId = StpUtil.getLoginIdAsLong();
         String mainPath = pathProperties.getMainPath();
+        log.error("========= 开始调用解析算法，参数：{}", fileUrl);
         // 调用算法
         algoExecutor.submit(() -> {
             StringBuilder builder = new StringBuilder();
             builder.append(mainPath).append(" ")
-//                    .append("--resume_id").append(" ").append(po.getId()).append(" ")
                     .append("--user_id").append(" ").append(userId).append(" ")
                     .append("--resume_loc").append(" ")
-                    .append("\"").append(fileUrl).append("\"");
+                    .append("\"").append(fileUrl).append("\"").append(" ")
+                    .append("--file_name ").append("\"")
+                    .append(filename).append("\"");
             log.info("[parse algo] 调用python命令：{}", builder.toString());
             execPython(builder.toString());
         });
-
+        log.error("========= 调用解析算法结束，参数：{}", fileUrl);
         return Base64Util.encodeUrlSafe(fileUrl);
     }
 
@@ -145,7 +148,8 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
                 .eq(ResumePO::getFileUrl, decodeUrlSafe));
 
         if (poList.size() != 1) {
-            return Result.error(500, "数据异常");
+            log.info("查询简历表数据异常，数据条数：{}, 用户id：{}，简历路径：{}", poList.size(), userId, decodeUrlSafe);
+            return Result.success(null);
         }
 
         ResumePO resumePO = poList.get(0);
@@ -183,10 +187,9 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
         if (ObjectUtils.isEmpty(resumePO)) {
             throw new CommonException("数据为空，运行异常");
         }
-
         String rankingPath = pathProperties.getRankingPath();
+        log.info("====== start rank algo");
         execShell(rankingPath, String.valueOf(id));
-
         return Boolean.TRUE;
     }
 
@@ -272,6 +275,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
                     .score(topInfo.get(userId))
                     .build();
             userInfoVOS.add(build);
+            rank++;
         }
 
         vo.setTotalInfo(userInfoVOS);
@@ -287,7 +291,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
                 .userId(sysUserPO.getId())
                 .username(sysUserPO.getUsername())
                 .avatar(sysUserPO.getAvatar())
-                .rank(rankingById > 99 ? "99+" : String.valueOf(rankingById))
+                .rank(rankingById > 99 ? "99+" : String.valueOf(rankingById + 1))
                 .resumeId(list.get(0).getId())
                 .score(rankingScore).build();
 
@@ -363,6 +367,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
     }
 
     private void execShell(String path, String resumeId) {
+        log.info("******* 异步执行标签算法");
         algoExecutor.submit(() -> {
             StringBuilder builder = new StringBuilder();
             builder.append(path).append(" ")
@@ -375,6 +380,7 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, ResumePO> imple
     private String rankingRedisName(RankingTypeEnum rankingTypeEnum) {
         String zsetName = null;
         switch (rankingTypeEnum) {
+            case TOTAL -> zsetName = RANK_TOTAL;
             case TIAN -> zsetName = RANK_TIAN;
             case DI -> zsetName = RANK_DI;
             case XUAN -> zsetName = RANK_XUAN;

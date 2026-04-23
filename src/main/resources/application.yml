@@ -74,8 +74,8 @@ algo:
     complete-shutdown: true
     await-termination-seconds: 120
   path:
-    main-path: python main.py
-    ranking-path: python main.py
+    main-path: python /data/AI_Resume/ResumeParser/main.py
+    ranking-path: python /data/AI_Resume/ResumeRank/main.py
     suggest-path: python main.py
 
 resume:
